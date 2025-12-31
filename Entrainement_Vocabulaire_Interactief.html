@@ -1,0 +1,162 @@
+
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <title>La Mobilité et le Transport - Éditeur</title>
+        <style>
+            :root { --primary: #3498db; --success: #2ecc71; --danger: #e74c3c; --bg: #121212; --card: #1e1e1e; }
+            body { background-color: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; }
+            #container { width: 95%; max-width: 1100px; margin: 40px auto; text-align: center; }
+
+            /* Menu Grid */
+            .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+            .set-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #333; }
+            .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 15px; width: 100%; margin-bottom: 8px; transition: 0.3s; }
+            .btn-edit { background: #444; }
+            .btn:hover { filter: brightness(1.2); }
+
+            /* Modals & Screens */
+            .screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 100; justify-content: center; align-items: center; flex-direction: column; }
+            #modal { background: rgba(0,0,0,0.85); }
+            .modal-content { background: #222; padding: 25px; border-radius: 15px; width: 90%; max-width: 600px; }
+
+            /* Editable Table */
+            .edit-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+            .edit-table input { background: #333; color: white; border: 1px solid #555; padding: 5px; width: 95%; border-radius: 4px; }
+            .scroll-area { max-height: 400px; overflow-y: auto; border: 1px solid #333; }
+
+            /* Exercise elements */
+            #word-display { font-size: 100px; font-weight: bold; margin: 40px 0; color: #f1c40f; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
+            #timer-container { width: 70%; height: 12px; background: #333; border-radius: 6px; margin: 20px auto; overflow: hidden; }
+            #timer-bar { width: 100%; height: 100%; background: var(--success); transition: width 1s linear; }
+
+            th, td { padding: 8px; border: 1px solid #444; text-align: left; }
+        </style>
+    </head>
+    <body>
+
+    <div id="container">
+        <h1>La Mobilité et le Transport</h1>
+        <p style="color: #888;">Cliquez sur "Modifier" voor ajuster les mots avant de commencer.</p>
+        <div class="grid" id="set-grid"></div>
+    </div>
+
+    <div id="modal" class="screen" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2 id="modal-title" style="color: var(--primary);">Modifier la série</h2>
+            <div class="scroll-area">
+                <table class="edit-table">
+                    <thead><tr><th>NL</th><th>FR</th></tr></thead>
+                    <tbody id="edit-tbody"></tbody>
+                </table>
+            </div>
+            <p style="font-size: 12px; color: #888; margin-top:10px;">Les modifications ne sont valables que pour cette session.</p>
+            <button class="btn" style="background:var(--success);" onclick="saveAndClose()">Valider les modifications</button>
+        </div>
+    </div>
+
+    <div id="exercise" class="screen">
+        <div id="info-fr">Série X - Mot X/14</div>
+        <div id="timer-container"><div id="timer-bar"></div></div>
+        <div id="word-display">MOT</div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn" style="width:120px; background:#555;" id="pause-btn" onclick="togglePause()">Pause</button>
+            <button class="btn" style="width:120px; background:var(--danger);" onclick="location.reload()">Quitter</button>
+        </div>
+    </div>
+
+    <div id="result" class="screen">
+        <h2 style="color: var(--success);">Correction</h2>
+        <div style="width: 80%; max-height: 70vh; overflow-y: auto;">
+            <table><thead><tr><th>Néerlandais</th><th>Français</th></tr></thead><tbody id="res-body"></tbody></table>
+        </div>
+        <button class="btn" style="margin-top: 20px; width:200px; background:var(--danger);" onclick="location.reload()">Retour au Menu</button>
+    </div>
+
+    <script>
+        let allSets = [[{"nl": "de aansluiting", "fr": "la correspondance"}, {"nl": "links afslaan", "fr": "tourner \u00e0 gauche"}, {"nl": "landen", "fr": "atterrir"}, {"nl": "wachten voor het rood licht", "fr": "attendre aux feux rouges"}, {"nl": "het rijbewijs behalen", "fr": "passer le permis"}, {"nl": "het rondpunt", "fr": "le rond-point"}, {"nl": "de controle verliezen", "fr": "perdre le contr\u00f4le"}, {"nl": "het kruispunt", "fr": "le carrefour"}, {"nl": "parkeren", "fr": "se garer"}, {"nl": "carpoolen", "fr": "le covoiturage"}, {"nl": "wegenwerken", "fr": "les travaux routiers"}, {"nl": "pendelen", "fr": "faire la navette"}, {"nl": "wandelen", "fr": "se promener"}, {"nl": "het intrekken van het rijbewijs", "fr": "le retrait du permis"}], [{"nl": "carpoolen", "fr": "le covoiturage"}, {"nl": "wegenwerken", "fr": "les travaux routiers"}, {"nl": "pendelen", "fr": "faire la navette"}, {"nl": "wandelen", "fr": "se promener"}, {"nl": "het intrekken van het rijbewijs", "fr": "le retrait du permis"}, {"nl": "claxonneren", "fr": "klaxonner"}, {"nl": "de snelweg", "fr": "l'autoroute"}, {"nl": "zich verplaatsen", "fr": "se d\u00e9placer"}, {"nl": "de omleiding volgen", "fr": "suivre la d\u00e9viation"}, {"nl": "de voorruit", "fr": "le pare-brise"}, {"nl": "stappen", "fr": "marcher"}, {"nl": "omvergereden worden", "fr": "se faire renverser"}, {"nl": "vertragen", "fr": "ralentir"}, {"nl": "remmen", "fr": "freiner"}], [{"nl": "de voorruit", "fr": "le pare-brise"}, {"nl": "stappen", "fr": "marcher"}, {"nl": "omvergereden worden", "fr": "se faire renverser"}, {"nl": "vertragen", "fr": "ralentir"}, {"nl": "remmen", "fr": "freiner"}, {"nl": "de straat oversteken", "fr": "traverser la rue"}, {"nl": "een aanrijding", "fr": "une collision"}, {"nl": "het station", "fr": "la gare"}, {"nl": "een fluovestje dragen", "fr": "porter un gilet fluo"}, {"nl": "een zwakke weggebruiker", "fr": "un usager faible"}, {"nl": "een lekke band", "fr": "le pneu crev\u00e9"}, {"nl": "de bakfiets", "fr": "le v\u00e9lo cargo"}, {"nl": "de buschauffeur", "fr": "le chauffeur de bus"}, {"nl": "een cruise maken", "fr": "faire une croisi\u00e8re"}], [{"nl": "een zwakke weggebruiker", "fr": "un usager faible"}, {"nl": "een lekke band", "fr": "le pneu crev\u00e9"}, {"nl": "de bakfiets", "fr": "le v\u00e9lo cargo"}, {"nl": "de buschauffeur", "fr": "le chauffeur de bus"}, {"nl": "een cruise maken", "fr": "faire une croisi\u00e8re"}, {"nl": "opstijgen", "fr": "d\u00e9coller"}, {"nl": "slippen", "fr": "d\u00e9raper"}, {"nl": "een ticket kopen", "fr": "acheter un billet"}, {"nl": "stiptheid", "fr": "la ponctualit\u00e9"}, {"nl": "de rechtstreekse verbinding", "fr": "la ligne directe"}, {"nl": "met de trein reizen", "fr": "voyager en train"}, {"nl": "achteruitrijden", "fr": "reculer"}, {"nl": "met de auto rijden", "fr": "conduire une voiture"}, {"nl": "tanken", "fr": "faire le plein"}], [{"nl": "de rechtstreekse verbinding", "fr": "la ligne directe"}, {"nl": "met de trein reizen", "fr": "voyager en train"}, {"nl": "achteruitrijden", "fr": "reculer"}, {"nl": "met de auto rijden", "fr": "conduire une voiture"}, {"nl": "tanken", "fr": "faire le plein"}, {"nl": "de ketting", "fr": "la cha\u00eene"}, {"nl": "starten", "fr": "d\u00e9marrer"}, {"nl": "het perron", "fr": "le quai"}, {"nl": "de achteruitkijkspiegel", "fr": "le r\u00e9troviseur"}, {"nl": "de luchthaven", "fr": "l'a\u00e9roport"}, {"nl": "snelheidsbeperkingen", "fr": "limitations de vitesse"}, {"nl": "de wegcode", "fr": "le code de la route"}, {"nl": "een vlucht", "fr": "un vol"}, {"nl": "een file", "fr": "un embouteillage"}], [{"nl": "de luchthaven", "fr": "l'a\u00e9roport"}, {"nl": "snelheidsbeperkingen", "fr": "limitations de vitesse"}, {"nl": "de wegcode", "fr": "le code de la route"}, {"nl": "een vlucht", "fr": "un vol"}, {"nl": "een file", "fr": "un embouteillage"}, {"nl": "het stuurwiel", "fr": "le volant"}, {"nl": "de rijinstructeur", "fr": "le moniteur"}, {"nl": "een fietser", "fr": "un cycliste"}, {"nl": "het praktijkexamen", "fr": "l'examen pratique"}, {"nl": "varen", "fr": "naviguer"}, {"nl": "door het rood rijden", "fr": "br\u00fbler un feu rouge"}, {"nl": "de zachte mobiliteit", "fr": "la mobilit\u00e9 douce"}, {"nl": "zichtbaar zijn op de weg", "fr": "\u00eatre visible sur la route"}, {"nl": "de reizigers", "fr": "les passagers"}], [{"nl": "varen", "fr": "naviguer"}, {"nl": "door het rood rijden", "fr": "br\u00fbler un feu rouge"}, {"nl": "de zachte mobiliteit", "fr": "la mobilit\u00e9 douce"}, {"nl": "zichtbaar zijn op de weg", "fr": "\u00eatre visible sur la route"}, {"nl": "de reizigers", "fr": "les passagers"}, {"nl": "een automobilist", "fr": "un automobiliste"}, {"nl": "de dienstregeling raadplegen", "fr": "consulter les horaires"}, {"nl": "de elektrische step", "fr": "la trottinette \u00e9lectrique"}, {"nl": "een helm dragen", "fr": "porter un casque"}, {"nl": "zich begeven naar", "fr": "se rendre \u00e0"}, {"nl": "de grens oversteken", "fr": "traverser la ronde"}, {"nl": "de hulpdiensten bellen", "fr": "appeler les secours"}, {"nl": "trappen (op de pedalen)", "fr": "p\u00e9daler"}, {"nl": "een laadpaal", "fr": "une borne de recharge"}], [{"nl": "zich begeven naar", "fr": "se rendre \u00e0"}, {"nl": "de grens oversteken", "fr": "traverser la ronde"}, {"nl": "de hulpdiensten bellen", "fr": "appeler les secours"}, {"nl": "trappen (op de pedalen)", "fr": "p\u00e9daler"}, {"nl": "een laadpaal", "fr": "une borne de recharge"}, {"nl": "een voetganger", "fr": "un pi\u00e9ton"}, {"nl": "uitstappen", "fr": "descendre"}, {"nl": "een boete", "fr": "une amende"}, {"nl": "de bedrijfswagen", "fr": "la voiture de soci\u00e9t\u00e9"}, {"nl": "het loket", "fr": "le guichet"}, {"nl": "het zebrapad", "fr": "le passage pour pi\u00e9tons"}, {"nl": "een voertuig", "fr": "un v\u00e9hicule"}, {"nl": "het slot", "fr": "le cadenas"}, {"nl": "de verplaatsing", "fr": "le d\u00e9placement"}], [{"nl": "het loket", "fr": "le guichet"}, {"nl": "het zebrapad", "fr": "le passage pour pi\u00e9tons"}, {"nl": "een voertuig", "fr": "un v\u00e9hicule"}, {"nl": "het slot", "fr": "le cadenas"}, {"nl": "de verplaatsing", "fr": "le d\u00e9placement"}, {"nl": "de rijschool", "fr": "l'auto-\u00e9cole"}, {"nl": "de gordel dragen", "fr": "attacher sa ceinture"}, {"nl": "zijn vervoermiddel kiezen", "fr": "choisir son mode de transport"}, {"nl": "versnellen", "fr": "acc\u00e9l\u00e9rer"}, {"nl": "omkeren", "fr": "faire demi-tour"}, {"nl": "inhalen", "fr": "d\u00e9passer"}, {"nl": "terugkeren naar", "fr": "retourner"}, {"nl": "het openbaar vervoer nemen", "fr": "prendre les transports en commun"}, {"nl": "een aanrijdingsformulier invullen", "fr": "faire un constat"}], [{"nl": "omkeren", "fr": "faire demi-tour"}, {"nl": "inhalen", "fr": "d\u00e9passer"}, {"nl": "terugkeren naar", "fr": "retourner"}, {"nl": "het openbaar vervoer nemen", "fr": "prendre les transports en commun"}, {"nl": "een aanrijdingsformulier invullen", "fr": "faire un constat"}, {"nl": "de band", "fr": "le pneu"}, {"nl": "het voetpad", "fr": "le trottoir"}, {"nl": "het zadel", "fr": "la selle"}, {"nl": "getuigen", "fr": "t\u00e9moigner"}, {"nl": "rondrijden", "fr": "circuler"}, {"nl": "de spitsuren", "fr": "les heures de pointe"}, {"nl": "de verkeersregels naleven", "fr": "respecter les r\u00e8gles de circulation"}, {"nl": "een abonnement hebben", "fr": "avoir un abonnement"}, {"nl": "de richtingaanwijzer", "fr": "le clignotant"}]];
+        let currentSetIdx = 0, wordIdx = 0, timeLeft = 8, isPaused = false, interval;
+
+        // Initialisation du Menu
+        const grid = document.getElementById('set-grid');
+        allSets.forEach((set, i) => {
+            const card = document.createElement('div');
+            card.className = 'set-card';
+            card.innerHTML = `
+                <h3 style="margin-top:0;">Série ${i+1}</h3>
+                <button class="btn" onclick="startSet(${i})">🚀 Démarrer</button>
+                <button class="btn btn-edit" onclick="openEditor(${i})">⚙ Modifier la liste</button>
+            `;
+            grid.appendChild(card);
+        });
+
+        function openEditor(idx) {
+            currentSetIdx = idx;
+            const tbody = document.getElementById('edit-tbody');
+            document.getElementById('modal-title').innerText = `Modifier la Série ${idx+1}`;
+            tbody.innerHTML = allSets[idx].map((w, i) => `
+                <tr>
+                    <td><input type="text" value="${w.nl}" onchange="updateWord(${i}, 'nl', this.value)"></td>
+                    <td><input type="text" value="${w.fr}" onchange="updateWord(${i}, 'fr', this.value)"></td>
+                </tr>
+            `).join('');
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function updateWord(wordIdx, lang, val) {
+            allSets[currentSetIdx][wordIdx][lang] = val;
+        }
+
+        function saveAndClose() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        function closeModal(e) { document.getElementById('modal').style.display = 'none'; }
+
+        function startSet(idx) {
+            currentSetIdx = idx; wordIdx = 0;
+            document.getElementById('container').style.display = 'none';
+            document.getElementById('exercise').style.display = 'flex';
+            nextWord();
+        }
+
+        function nextWord() {
+            const set = allSets[currentSetIdx];
+            if (wordIdx >= set.length) { showResults(); return; }
+            timeLeft = 8; updateTimerBar();
+            document.getElementById('word-display').innerText = set[wordIdx].nl;
+            document.getElementById('info-fr').innerText = `Série ${currentSetIdx+1} - Mot ${wordIdx+1} / 14`;
+
+            if (interval) clearInterval(interval);
+            interval = setInterval(() => {
+                if (!isPaused) {
+                    timeLeft--; updateTimerBar();
+                    if (timeLeft <= 0) { wordIdx++; nextWord(); }
+                }
+            }, 1000);
+        }
+
+        function updateTimerBar() {
+            const bar = document.getElementById('timer-bar');
+            bar.style.width = (timeLeft / 8 * 100) + '%';
+            bar.style.backgroundColor = timeLeft < 3 ? 'var(--danger)' : 'var(--success)';
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById('pause-btn').innerText = isPaused ? "Reprendre" : "Pause";
+        }
+
+        function showResults() {
+            clearInterval(interval);
+            document.getElementById('exercise').style.display = 'none';
+            document.getElementById('result').style.display = 'flex';
+            document.getElementById('res-body').innerHTML = allSets[currentSetIdx].map(w => `
+                <tr><td>${w.nl}</td><td><strong>${w.fr}</strong></td></tr>
+            `).join('');
+        }
+    </script>
+    </body>
+    </html>
+    
